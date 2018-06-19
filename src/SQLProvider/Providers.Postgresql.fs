@@ -39,12 +39,13 @@ module PostgreSQL =
                     assemblyNames Environment.NewLine resolutionPaths details
 
     let isLegacyVersion = lazy (assembly.Value.GetName().Version.Major < 3)
+    let isRunningInVS = lazy(System.Diagnostics.Process.GetCurrentProcess().ProcessName.Equals("devenv", StringComparison.InvariantCultureIgnoreCase))
     let findType name = 
         let types = 
             try assembly.Value.GetTypes() 
             with | :? System.Reflection.ReflectionTypeLoadException as e ->
                 let msgs = e.LoaderExceptions |> Seq.map(fun e -> e.GetBaseException().Message) |> Seq.distinct
-                let details = "Details: " + Environment.NewLine + String.Join(Environment.NewLine, msgs)
+                let details = "Details: " + Environment.NewLine + String.Join(Environment.NewLine, msgs) + Environment.NewLine + "Hint(s): " + Environment.NewLine + "1) Ensure that the above assembly is located in your resolutionPath: '"+resolutionPath+"'" + (if isRunningInVS.Value then Environment.NewLine + "2) You may have to add a <loadFromRemoteSources enabled=\"true\"/> tag in your devenv.exe.config.  Check https://github.com/fsprojects/SQLProvider#known-issues for details." else "")
                 failwith (e.Message + Environment.NewLine + details)
         types |> Array.tryFind (fun t -> t.Name = name)
     let getType = findType >> Option.get
